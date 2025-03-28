@@ -13,9 +13,10 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(180deg, #0a0a23, #1a1a4d); /* Space gradient */
+            background: linear-gradient(180deg, #0a0a23, #1a1a4d);
             font-family: 'Orbitron', sans-serif;
             color: #fff;
+            overflow-x: hidden;
         }
         header {
             padding: 20px;
@@ -31,42 +32,74 @@
             position: relative;
             display: flex;
             justify-content: center;
+            width: 100%;
         }
         canvas {
             background: #000;
             border: 2px solid #00ffcc;
             box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
         }
-        footer {
-            padding: 20px;
+        #mobileControls {
+            display: none;
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            max-width: 600px;
             text-align: center;
+            z-index: 10;
+        }
+        .control-btn {
+            padding: 15px 30px;
+            margin: 0 10px;
+            background: #00ffcc;
+            border: none;
+            border-radius: 5px;
+            color: #000;
             font-size: 1em;
+            font-family: 'Orbitron', sans-serif;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ffcc;
+        }
+        footer {
+            padding: 10px;
+            text-align: center;
+            font-size: 0.9em;
             background: rgba(0, 0, 0, 0.7);
             width: 100%;
             position: fixed;
             bottom: 0;
             text-shadow: 0 0 5px #ff66cc;
         }
-        footer p {
-            margin: 5px 0;
-        }
         @keyframes glow {
             from { text-shadow: 0 0 5px #00ffcc; }
             to { text-shadow: 0 0 15px #00ffcc; }
         }
-        /* Responsive design */
+        /* Desktop */
+        @media (min-width: 851px) {
+            canvas {
+                width: 800px;
+                height: 600px;
+            }
+        }
+        /* Mobile */
         @media (max-width: 850px) {
             canvas {
                 width: 100%;
-                height: auto;
+                height: 70vh;
                 max-width: 600px;
                 max-height: 450px;
             }
             h1 {
                 font-size: 1.8em;
             }
+            #mobileControls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
             footer {
-                font-size: 0.9em;
+                font-size: 0.8em;
+                padding-bottom: 60px; /* Space for mobile controls */
             }
         }
     </style>
@@ -76,24 +109,28 @@
         <h1>Space Blaster</h1>
     </header>
     <div id="gameContainer">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <canvas id="gameCanvas"></canvas>
+        <div id="mobileControls">
+            <button class="control-btn" id="leftBtn">Left</button>
+            <button class="control-btn" id="shootBtn">Shoot</button>
+            <button class="control-btn" id="rightBtn">Right</button>
+        </div>
     </div>
     <footer>
-        <p>Controls:</p>
-        <p>← Left | → Right | Space to Shoot | R to Restart</p>
+        <p>Controls: ← Left | → Right | Space to Shoot | R to Restart</p>
+        <p>Developed by Akshat Behera. All Rights Reserved.</p>
     </footer>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const isMobile = window.innerWidth <= 850;
 
-        // Adjust canvas for pixel clarity
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = 800;
-        canvas.height = 600;
+        // Set canvas size based on device
+        canvas.width = isMobile ? Math.min(window.innerWidth - 20, 600) : 800;
+        canvas.height = isMobile ? Math.min(window.innerHeight * 0.7, 450) : 600;
         canvas.style.width = `${canvas.width}px`;
         canvas.style.height = `${canvas.height}px`;
-        ctx.scale(dpr, dpr);
 
         class Player {
             constructor() {
@@ -190,6 +227,7 @@
                 this.highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
                 this.gameOver = false;
                 this.keys = {};
+                this.touchControls = { left: false, right: false, shoot: false };
                 this.starfield = this.createStarfield();
                 this.initEventListeners();
                 this.spawnEnemies();
@@ -198,12 +236,29 @@
             }
 
             initEventListeners() {
+                // Keyboard controls
                 window.addEventListener('keydown', (e) => {
                     this.keys[e.key] = true;
                     if (e.key === ' ' && !this.gameOver) this.shootLaser();
                     if (this.gameOver && e.key.toLowerCase() === 'r') this.reset();
                 });
                 window.addEventListener('keyup', (e) => this.keys[e.key] = false);
+
+                // Touch controls
+                if (isMobile) {
+                    const leftBtn = document.getElementById('leftBtn');
+                    const rightBtn = document.getElementById('rightBtn');
+                    const shootBtn = document.getElementById('shootBtn');
+
+                    leftBtn.addEventListener('touchstart', () => this.touchControls.left = true);
+                    leftBtn.addEventListener('touchend', () => this.touchControls.left = false);
+                    rightBtn.addEventListener('touchstart', () => this.touchControls.right = true);
+                    rightBtn.addEventListener('touchend', () => this.touchControls.right = false);
+                    shootBtn.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (!this.gameOver) this.shootLaser();
+                    });
+                }
             }
 
             createStarfield() {
@@ -254,8 +309,13 @@
             update() {
                 if (this.gameOver) return;
 
+                // Keyboard controls
                 if (this.keys['ArrowLeft']) this.player.move('left');
                 if (this.keys['ArrowRight']) this.player.move('right');
+
+                // Touch controls
+                if (this.touchControls.left) this.player.move('left');
+                if (this.touchControls.right) this.player.move('right');
 
                 this.lasers = this.lasers.filter(laser => laser.y > -laser.height);
                 this.lasers.forEach(laser => laser.update());
@@ -304,6 +364,7 @@
                 this.powerUps = [];
                 this.score = 0;
                 this.gameOver = false;
+                this.touchControls = { left: false, right: false, shoot: false };
             }
 
             draw() {
@@ -326,7 +387,7 @@
                     ctx.textAlign = 'center';
                     ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
                     ctx.font = '20px Orbitron';
-                    ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 40);
+                    ctx.fillText('Press R or Reload to Restart', canvas.width / 2, canvas.height / 2 + 40);
                     ctx.textAlign = 'left';
                 }
             }
