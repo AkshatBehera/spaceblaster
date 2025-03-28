@@ -4,45 +4,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Blaster</title>
-    <link rel="icon" type="image/png" href="favicon.png">
     <style>
         body {
             margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(to bottom, #000, #333);
-            color: #fff;
+            background: #000;
+            overflow: hidden;
             font-family: Arial, sans-serif;
         }
-        canvas {
+        #gameCanvas {
             border: 1px solid #fff;
             max-width: 100%;
-            max-height: 80vh;
-            width: auto;
-            height: auto;
-            background: #000;
+            max-height: 100vh;
         }
-        .title {
-            font-size: 2em;
-            margin-bottom: 10px;
+        #controls {
+            display: none; /* Hidden by default on desktop */
+            position: fixed;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
         }
-        .footer {
-            font-size: 0.8em;
-            margin-top: 10px;
+        .control-btn {
+            padding: 15px 30px;
+            margin: 5px;
+            background: #00ffcc;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .control-btn:active {
+            background: #ffcc00;
+        }
+        @media (max-width: 768px) {
+            #controls {
+                display: block;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="title">Space Blaster</div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div class="footer">Developed by Akshat Behera - All Rights Reserved</div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <button id="leftBtn" class="control-btn">Left</button>
+        <button id="shootBtn" class="control-btn">Shoot</button>
+        <button id="rightBtn" class="control-btn">Right</button>
+    </div>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+
+        // Responsive canvas sizing
+        function resizeCanvas() {
+            const maxWidth = 800;
+            const maxHeight = 600;
+            const aspectRatio = maxWidth / maxHeight;
+            let width = window.innerWidth * 0.9;
+            let height = window.innerHeight * 0.8;
+            if (width / height > aspectRatio) {
+                width = height * aspectRatio;
+            } else {
+                height = width / aspectRatio;
+            }
+            canvas.width = Math.min(maxWidth, width);
+            canvas.height = Math.min(maxHeight, height);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
         class Player {
             constructor() {
@@ -133,14 +169,32 @@
                 this.enemies = [];
                 this.powerUps = [];
                 this.score = 0;
-                this.highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+                this.highScore = this.getHighScore();
                 this.gameOver = false;
                 this.keys = {};
+                this.touch = { left: false, right: false, shoot: false };
                 this.starfield = this.createStarfield();
                 this.initEventListeners();
                 this.spawnEnemies();
                 this.spawnPowerUps();
                 this.gameLoop();
+            }
+
+            getHighScore() {
+                try {
+                    return localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
+                } catch (e) {
+                    console.warn('localStorage unavailable, using default high score');
+                    return 0;
+                }
+            }
+
+            setHighScore(score) {
+                try {
+                    localStorage.setItem('highScore', score);
+                } catch (e) {
+                    console.warn('Could not save high score to localStorage');
+                }
             }
 
             initEventListeners() {
@@ -151,6 +205,19 @@
                 });
                 window.addEventListener('keyup', (e) => {
                     this.keys[e.key] = false;
+                });
+
+                const leftBtn = document.getElementById('leftBtn');
+                const rightBtn = document.getElementById('rightBtn');
+                const shootBtn = document.getElementById('shootBtn');
+
+                leftBtn.addEventListener('touchstart', () => this.touch.left = true);
+                leftBtn.addEventListener('touchend', () => this.touch.left = false);
+                rightBtn.addEventListener('touchstart', () => this.touch.right = true);
+                rightBtn.addEventListener('touchend', () => this.touch.right = false);
+                shootBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (!this.gameOver) this.shootLaser();
                 });
             }
 
@@ -202,8 +269,8 @@
             update() {
                 if (this.gameOver) return;
 
-                if (this.keys['ArrowLeft']) this.player.move('left');
-                if (this.keys['ArrowRight']) this.player.move('right');
+                if (this.keys['ArrowLeft'] || this.touch.left) this.player.move('left');
+                if (this.keys['ArrowRight'] || this.touch.right) this.player.move('right');
 
                 this.lasers.forEach((laser, lIndex) => {
                     laser.update();
@@ -227,7 +294,7 @@
                         this.gameOver = true;
                         if (this.score > this.highScore) {
                             this.highScore = this.score;
-                            localStorage.setItem('highScore', this.highScore);
+                            this.setHighScore(this.highScore);
                         }
                     }
                 });
@@ -299,7 +366,7 @@
                     ctx.font = '40px Arial';
                     ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
                     ctx.font = '20px Arial';
-                    ctx.fillText('Press R to Restart', canvas.width / 2 - 80, canvas.height / 2 + 40);
+                    ctx.fillText('Press R or Tap to Restart', canvas.width / 2 - 100, canvas.height / 2 + 40);
                 }
             }
 
@@ -311,6 +378,13 @@
         }
 
         const game = new Game();
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (game.gameOver) {
+                e.preventDefault();
+                game.reset();
+            }
+        });
     </script>
 </body>
 </html>
