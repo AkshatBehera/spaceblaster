@@ -312,6 +312,14 @@
                 });
             }
 
+            drawTitle() {
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '30px Arial';
+                const title = 'Space Blaster';
+                const titleWidth = ctx.measureText(title).width;
+                ctx.fillText(title, (canvas.width - titleWidth) / 2, 40);
+            }
+
             drawControls() {
                 const controlsText = [
                     'Controls:',
@@ -322,7 +330,7 @@
                 ctx.fillStyle = '#ffffff';
                 ctx.font = '16px Arial';
                 const maxWidth = Math.max(...controlsText.map(text => ctx.measureText(text).width));
-                let y = 30;
+                let y = 70; // Adjusted to avoid overlap with title
                 controlsText.forEach(text => {
                     ctx.fillText(text, canvas.width - maxWidth - 10, y);
                     y += 20;
@@ -334,6 +342,14 @@
                 ctx.font = '20px Arial';
                 ctx.fillText(`Score: ${this.score}`, 10, 30);
                 ctx.fillText(`High Score: ${this.highScore}`, 10, 60);
+            }
+
+            drawFooter() {
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '14px Arial';
+                const footerText = 'Developed by Akshat Behera, All Rights Reserved';
+                const footerWidth = ctx.measureText(footerText).width;
+                ctx.fillText(footerText, canvas.width - footerWidth - 10, canvas.height - 10);
             }
 
             reset() {
@@ -358,8 +374,10 @@
                 this.lasers.forEach(laser => laser.draw());
                 this.enemies.forEach(enemy => enemy.draw());
                 this.powerUps.forEach(powerUp => powerUp.draw());
+                this.drawTitle();
                 this.drawScore();
                 this.drawControls();
+                this.drawFooter();
 
                 if (this.gameOver) {
                     ctx.fillStyle = '#ffffff';
