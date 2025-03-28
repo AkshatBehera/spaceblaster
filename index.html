@@ -4,81 +4,96 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Space Blaster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
     <style>
         body {
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
-            justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: #000;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
+            background: linear-gradient(180deg, #0a0a23, #1a1a4d); /* Space gradient */
+            font-family: 'Orbitron', sans-serif;
+            color: #fff;
         }
-        #gameCanvas {
-            border: 1px solid #fff;
-            max-width: 100%;
-            max-height: 100vh;
-        }
-        #controls {
-            display: none; /* Hidden by default on desktop */
-            position: fixed;
-            bottom: 10px;
-            width: 100%;
+        header {
+            padding: 20px;
             text-align: center;
         }
-        .control-btn {
-            padding: 15px 30px;
-            margin: 5px;
-            background: #00ffcc;
-            color: #000;
-            border: none;
-            border-radius: 5px;
-            font-size: 18px;
-            cursor: pointer;
-            touch-action: manipulation;
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+            text-shadow: 0 0 10px #00ffcc;
+            animation: glow 2s infinite alternate;
         }
-        .control-btn:active {
-            background: #ffcc00;
+        #gameContainer {
+            position: relative;
+            display: flex;
+            justify-content: center;
         }
-        @media (max-width: 768px) {
-            #controls {
-                display: block;
+        canvas {
+            background: #000;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+        }
+        footer {
+            padding: 20px;
+            text-align: center;
+            font-size: 1em;
+            background: rgba(0, 0, 0, 0.7);
+            width: 100%;
+            position: fixed;
+            bottom: 0;
+            text-shadow: 0 0 5px #ff66cc;
+        }
+        footer p {
+            margin: 5px 0;
+        }
+        @keyframes glow {
+            from { text-shadow: 0 0 5px #00ffcc; }
+            to { text-shadow: 0 0 15px #00ffcc; }
+        }
+        /* Responsive design */
+        @media (max-width: 850px) {
+            canvas {
+                width: 100%;
+                height: auto;
+                max-width: 600px;
+                max-height: 450px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            footer {
+                font-size: 0.9em;
             }
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas"></canvas>
-    <div id="controls">
-        <button id="leftBtn" class="control-btn">Left</button>
-        <button id="shootBtn" class="control-btn">Shoot</button>
-        <button id="rightBtn" class="control-btn">Right</button>
+    <header>
+        <h1>Space Blaster</h1>
+    </header>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
     </div>
+    <footer>
+        <p>Controls:</p>
+        <p>← Left | → Right | Space to Shoot | R to Restart</p>
+    </footer>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Responsive canvas sizing
-        function resizeCanvas() {
-            const maxWidth = 800;
-            const maxHeight = 600;
-            const aspectRatio = maxWidth / maxHeight;
-            let width = window.innerWidth * 0.9;
-            let height = window.innerHeight * 0.8;
-            if (width / height > aspectRatio) {
-                width = height * aspectRatio;
-            } else {
-                height = width / aspectRatio;
-            }
-            canvas.width = Math.min(maxWidth, width);
-            canvas.height = Math.min(maxHeight, height);
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        // Adjust canvas for pixel clarity
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = 800;
+        canvas.height = 600;
+        canvas.style.width = `${canvas.width}px`;
+        canvas.style.height = `${canvas.height}px`;
+        ctx.scale(dpr, dpr);
 
         class Player {
             constructor() {
@@ -92,16 +107,17 @@
 
             draw() {
                 ctx.fillStyle = this.hasDoubleLaser ? '#ffcc00' : '#00ffcc';
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.beginPath();
+                ctx.moveTo(this.x + this.width / 2, this.y);
+                ctx.lineTo(this.x, this.y + this.height);
+                ctx.lineTo(this.x + this.width, this.y + this.height);
+                ctx.closePath();
+                ctx.fill();
             }
 
             move(direction) {
-                if (direction === 'left' && this.x > 0) {
-                    this.x -= this.speed;
-                }
-                if (direction === 'right' && this.x < canvas.width - this.width) {
-                    this.x += this.speed;
-                }
+                if (direction === 'left' && this.x > 0) this.x -= this.speed;
+                if (direction === 'right' && this.x < canvas.width - this.width) this.x += this.speed;
             }
         }
 
@@ -154,7 +170,9 @@
 
             draw() {
                 ctx.fillStyle = '#ffff00';
-                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.beginPath();
+                ctx.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
+                ctx.fill();
             }
 
             update() {
@@ -169,32 +187,14 @@
                 this.enemies = [];
                 this.powerUps = [];
                 this.score = 0;
-                this.highScore = this.getHighScore();
+                this.highScore = localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
                 this.gameOver = false;
                 this.keys = {};
-                this.touch = { left: false, right: false, shoot: false };
                 this.starfield = this.createStarfield();
                 this.initEventListeners();
                 this.spawnEnemies();
                 this.spawnPowerUps();
                 this.gameLoop();
-            }
-
-            getHighScore() {
-                try {
-                    return localStorage.getItem('highScore') ? parseInt(localStorage.getItem('highScore')) : 0;
-                } catch (e) {
-                    console.warn('localStorage unavailable, using default high score');
-                    return 0;
-                }
-            }
-
-            setHighScore(score) {
-                try {
-                    localStorage.setItem('highScore', score);
-                } catch (e) {
-                    console.warn('Could not save high score to localStorage');
-                }
             }
 
             initEventListeners() {
@@ -203,22 +203,7 @@
                     if (e.key === ' ' && !this.gameOver) this.shootLaser();
                     if (this.gameOver && e.key.toLowerCase() === 'r') this.reset();
                 });
-                window.addEventListener('keyup', (e) => {
-                    this.keys[e.key] = false;
-                });
-
-                const leftBtn = document.getElementById('leftBtn');
-                const rightBtn = document.getElementById('rightBtn');
-                const shootBtn = document.getElementById('shootBtn');
-
-                leftBtn.addEventListener('touchstart', () => this.touch.left = true);
-                leftBtn.addEventListener('touchend', () => this.touch.left = false);
-                rightBtn.addEventListener('touchstart', () => this.touch.right = true);
-                rightBtn.addEventListener('touchend', () => this.touch.right = false);
-                shootBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    if (!this.gameOver) this.shootLaser();
-                });
+                window.addEventListener('keyup', (e) => this.keys[e.key] = false);
             }
 
             createStarfield() {
@@ -227,7 +212,7 @@
                     stars.push({
                         x: Math.random() * canvas.width,
                         y: Math.random() * canvas.height,
-                        size: Math.random() * 2
+                        size: Math.random() * 2 + 1
                     });
                 }
                 return stars;
@@ -269,20 +254,15 @@
             update() {
                 if (this.gameOver) return;
 
-                if (this.keys['ArrowLeft'] || this.touch.left) this.player.move('left');
-                if (this.keys['ArrowRight'] || this.touch.right) this.player.move('right');
+                if (this.keys['ArrowLeft']) this.player.move('left');
+                if (this.keys['ArrowRight']) this.player.move('right');
 
-                this.lasers.forEach((laser, lIndex) => {
-                    laser.update();
-                    if (laser.y < 0) this.lasers.splice(lIndex, 1);
-                });
+                this.lasers = this.lasers.filter(laser => laser.y > -laser.height);
+                this.lasers.forEach(laser => laser.update());
 
+                this.enemies = this.enemies.filter(enemy => enemy.y < canvas.height);
                 this.enemies.forEach((enemy, eIndex) => {
                     enemy.update();
-                    if (enemy.y > canvas.height) {
-                        this.enemies.splice(eIndex, 1);
-                        this.score -= 10;
-                    }
                     this.lasers.forEach((laser, lIndex) => {
                         if (this.isColliding(laser, enemy)) {
                             this.lasers.splice(lIndex, 1);
@@ -294,62 +274,27 @@
                         this.gameOver = true;
                         if (this.score > this.highScore) {
                             this.highScore = this.score;
-                            this.setHighScore(this.highScore);
+                            localStorage.setItem('highScore', this.highScore);
                         }
                     }
                 });
 
+                this.powerUps = this.powerUps.filter(powerUp => powerUp.y < canvas.height);
                 this.powerUps.forEach((powerUp, pIndex) => {
                     powerUp.update();
                     if (this.isColliding(this.player, powerUp)) {
                         this.powerUps.splice(pIndex, 1);
                         this.player.hasDoubleLaser = true;
-                        setTimeout(() => {
-                            this.player.hasDoubleLaser = false;
-                        }, 5000);
+                        setTimeout(() => this.player.hasDoubleLaser = false, 5000);
                     }
-                    if (powerUp.y > canvas.height) this.powerUps.splice(pIndex, 1);
-                });
-            }
-
-            drawTitle() {
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '30px Arial';
-                const title = 'Space Blaster';
-                const titleWidth = ctx.measureText(title).width;
-                ctx.fillText(title, (canvas.width - titleWidth) / 2, 40);
-            }
-
-            drawControls() {
-                const controlsText = [
-                    'Controls:',
-                    'Left: ←',
-                    'Right: →',
-                    'Shoot: Space'
-                ];
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '16px Arial';
-                const maxWidth = Math.max(...controlsText.map(text => ctx.measureText(text).width));
-                let y = 70; // Adjusted to avoid overlap with title
-                controlsText.forEach(text => {
-                    ctx.fillText(text, canvas.width - maxWidth - 10, y);
-                    y += 20;
                 });
             }
 
             drawScore() {
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '20px Arial';
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px Orbitron';
                 ctx.fillText(`Score: ${this.score}`, 10, 30);
                 ctx.fillText(`High Score: ${this.highScore}`, 10, 60);
-            }
-
-            drawFooter() {
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '14px Arial';
-                const footerText = 'Developed by Akshat Behera, All Rights Reserved';
-                const footerWidth = ctx.measureText(footerText).width;
-                ctx.fillText(footerText, canvas.width - footerWidth - 10, canvas.height - 10);
             }
 
             reset() {
@@ -362,11 +307,10 @@
             }
 
             draw() {
-                ctx.fillStyle = '#000';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
 
                 this.starfield.forEach(star => {
-                    ctx.fillStyle = '#ffffff';
+                    ctx.fillStyle = '#fff';
                     ctx.fillRect(star.x, star.y, star.size, star.size);
                 });
 
@@ -374,17 +318,16 @@
                 this.lasers.forEach(laser => laser.draw());
                 this.enemies.forEach(enemy => enemy.draw());
                 this.powerUps.forEach(powerUp => powerUp.draw());
-                this.drawTitle();
                 this.drawScore();
-                this.drawControls();
-                this.drawFooter();
 
                 if (this.gameOver) {
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '40px Arial';
-                    ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
-                    ctx.font = '20px Arial';
-                    ctx.fillText('Press R or Tap to Restart', canvas.width / 2 - 100, canvas.height / 2 + 40);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '40px Orbitron';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+                    ctx.font = '20px Orbitron';
+                    ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 40);
+                    ctx.textAlign = 'left';
                 }
             }
 
@@ -396,13 +339,6 @@
         }
 
         const game = new Game();
-
-        canvas.addEventListener('touchstart', (e) => {
-            if (game.gameOver) {
-                e.preventDefault();
-                game.reset();
-            }
-        });
     </script>
 </body>
 </html>
